@@ -64,3 +64,10 @@ music_player/
 ## How It Works
 
 The player reads the `songs/` directory on startup using Node's `fs` module and renders a list of tracks to the terminal. Raw mode input is enabled on `stdin` so keystrokes are captured instantly without requiring Enter — giving a smooth, interactive feel.
+<<<<<<< HEAD
+=======
+
+## License
+
+ISC
+>>>>>>> ebacadd (implement the arrow key)
