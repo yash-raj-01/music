@@ -1,10 +1,31 @@
 const fs = require("fs");
+const { spawn } = require("child_process");
 
 const songsPath = "./songs";
 
 const songs = fs.readdirSync(songsPath);
 
 let selectedSong = 0;
+let player = null;
+
+function playSong() {
+
+    if (player) {
+        player.kill();
+    }
+
+    const song = songs[selectedSong];
+    const songPath = `${songsPath}/${song}`;
+
+    console.log(`\n▶ Playing: ${song}`);
+
+    player = spawn("afplay", [songPath]);
+
+    player.on("exit", () => {
+        console.log("\n⏹ Song finished")
+        player = null;
+    });
+}
 
 function render() {
     console.clear();
@@ -53,6 +74,10 @@ process.stdin.on("data", (key) => {
         }
 
         render();
+    }
+
+    if (key === "\r") {
+        playSong();
     }
 });
 
