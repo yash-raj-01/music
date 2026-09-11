@@ -1,55 +1,46 @@
 const fs = require("fs");
-const { spawn } = require("child_process");
+const Player = require("./player");
 
 const songsPath = "./songs";
 
 const songs = fs.readdirSync(songsPath);
 
 let selectedSong = 0;
-let player = null;
-let isPaused = false;
+
+const player = new Player();
 
 
 function playSong() {
-    if (player) {
-        player.kill();
-    }
-
     const song = songs[selectedSong];
     const songPath = `${songsPath}/${song}`;
 
-    isPaused = false;
-
-    console.log(`\n▶ Playing: ${song}`);
-
-    player = spawn("afplay", [songPath]);
-
-    player.on("close", () => {
-        console.log("\n⏹ Song finished");
-        player = null;
-        isPaused = false;
+    player.play(songPath, () => {
+        nextSong();
     });
 }
 
 
-function togglePause() {
-    if (!player) {
-        return;
+function nextSong() {
+    selectedSong++;
+
+    if (selectedSong >= songs.length) {
+        selectedSong = 0;
     }
 
-    if (isPaused) {
+    playSong();
+    render();
+}
 
-        player.kill("SIGCONT");
-        isPaused = false;
 
-        console.log("\n▶ Resumed");
-    } else {
+function previousSong() {
+    selectedSong--;
 
-        player.kill("SIGSTOP");
-        isPaused = true;
-
-        console.log("\n⏸ Paused");
+    if (selectedSong < 0) {
+        selectedSong = songs.length - 1;
     }
+
+    playSong();
+    render();
 }
 
 
@@ -70,6 +61,8 @@ function render() {
     console.log("\n↑ ↓ Navigate");
     console.log("ENTER Play");
     console.log("SPACE Pause / Resume");
+    console.log("N Next");
+    console.log("P Previous");
     console.log("Q Quit");
 }
 
@@ -81,12 +74,12 @@ process.stdin.setEncoding("utf8");
 
 process.stdin.on("data", (key) => {
 
-    if (key === "q") {
-        if (player) {
-            player.kill();
-        }
 
-        process.exit();
+    if (key === "q") {
+        player.stop();
+        process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.exit(0);
     }
 
 
@@ -101,7 +94,6 @@ process.stdin.on("data", (key) => {
     }
 
 
-    // Arrow Up
     if (key === "\u001B[A") {
         selectedSong--;
 
@@ -112,13 +104,23 @@ process.stdin.on("data", (key) => {
         render();
     }
 
+
     if (key === "\r") {
         playSong();
     }
 
-
     if (key === " ") {
-        togglePause();
+        player.togglePause();
+    }
+
+
+    if (key === "n") {
+        nextSong();
+    }
+
+
+    if (key === "p") {
+        previousSong();
     }
 });
 
