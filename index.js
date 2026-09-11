@@ -6,21 +6,28 @@ const songsPath = "./songs";
 const songs = fs.readdirSync(songsPath);
 
 let selectedSong = 0;
+let currentSongIndex = -1;
 
 const player = new Player();
 
 
 function playSong() {
+
     const song = songs[selectedSong];
     const songPath = `${songsPath}/${song}`;
+
+    currentSongIndex = selectedSong;
 
     player.play(songPath, () => {
         nextSong();
     });
+
+    render();
 }
 
 
 function nextSong() {
+
     selectedSong++;
 
     if (selectedSong >= songs.length) {
@@ -28,11 +35,11 @@ function nextSong() {
     }
 
     playSong();
-    render();
 }
 
 
 function previousSong() {
+
     selectedSong--;
 
     if (selectedSong < 0) {
@@ -40,23 +47,50 @@ function previousSong() {
     }
 
     playSong();
-    render();
 }
 
 
 function render() {
+
     console.clear();
 
     console.log("🎵 MY MUSIC");
     console.log("--------------------");
 
+
     songs.forEach((song, index) => {
+
+        let marker = " ";
+
         if (index === selectedSong) {
-            console.log(`> ${song}`);
-        } else {
-            console.log(`  ${song}`);
+            marker = ">";
         }
+
+        if (index === currentSongIndex) {
+            marker = "▶";
+        }
+
+        console.log(`${marker} ${song}`);
     });
+
+
+    console.log("--------------------");
+
+
+    if (currentSongIndex !== -1) {
+
+        console.log(`Playing: ${songs[currentSongIndex]}`);
+
+        if (player.isPaused) {
+            console.log("Status: ⏸ Paused");
+        } else {
+            console.log("Status: ▶ Playing");
+        }
+
+    }
+
+
+    console.log("--------------------");
 
     console.log("\n↑ ↓ Navigate");
     console.log("ENTER Play");
@@ -76,14 +110,18 @@ process.stdin.on("data", (key) => {
 
 
     if (key === "q") {
+
         player.stop();
+
         process.stdin.setRawMode(false);
         process.stdin.pause();
+
         process.exit(0);
     }
 
 
     if (key === "\u001B[B") {
+
         selectedSong++;
 
         if (selectedSong >= songs.length) {
@@ -95,6 +133,7 @@ process.stdin.on("data", (key) => {
 
 
     if (key === "\u001B[A") {
+
         selectedSong--;
 
         if (selectedSong < 0) {
@@ -106,20 +145,25 @@ process.stdin.on("data", (key) => {
 
 
     if (key === "\r") {
+
         playSong();
     }
 
+
     if (key === " ") {
+
         player.togglePause();
+
+        render();
     }
 
-
     if (key === "n") {
+
         nextSong();
     }
 
-
     if (key === "p") {
+
         previousSong();
     }
 });

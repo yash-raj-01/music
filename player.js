@@ -4,19 +4,15 @@ class Player {
     constructor() {
         this.process = null;
         this.isPaused = false;
-        this.isStopping = false;
     }
 
     play(songPath, onFinish) {
         this.stop();
 
-        console.log(`▶ Playing: ${songPath}`);
-
         const newProcess = spawn("afplay", [songPath]);
 
         this.process = newProcess;
         this.isPaused = false;
-        this.isStopping = false;
 
         newProcess.on("close", () => {
             if (this.process !== newProcess) {
@@ -26,11 +22,10 @@ class Player {
             this.process = null;
             this.isPaused = false;
 
-            if (!this.isStopping) {
-                onFinish();
-            }
+            onFinish();
         });
     }
+
 
     pause() {
         if (!this.process || this.isPaused) {
@@ -38,10 +33,10 @@ class Player {
         }
 
         this.process.kill("SIGSTOP");
-        this.isPaused = true;
 
-        console.log("⏸ Paused");
+        this.isPaused = true;
     }
+
 
     resume() {
         if (!this.process || !this.isPaused) {
@@ -49,10 +44,10 @@ class Player {
         }
 
         this.process.kill("SIGCONT");
-        this.isPaused = false;
 
-        console.log("▶ Resumed");
+        this.isPaused = false;
     }
+
 
     togglePause() {
         if (!this.process) {
@@ -66,22 +61,20 @@ class Player {
         }
     }
 
+
     stop() {
         if (!this.process) {
             return;
         }
 
-        this.isStopping = true;
-
-        if (this.isPaused) {
-            this.process.kill("SIGCONT");
-        }
-
-        this.process.kill("SIGTERM");
+        const oldProcess = this.process;
 
         this.process = null;
         this.isPaused = false;
+
+        oldProcess.kill("SIGTERM");
     }
 }
+
 
 module.exports = Player;
