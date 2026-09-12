@@ -75,6 +75,4 @@ music_player/
 
 The player scans the `songs/` directory at startup and sets up raw mode on `stdin` to capture keypresses immediately without requiring Enter. Audio is streamed via macOS's native `afplay` utility, with durations parsed through `ffprobe`. The interface updates in-place using ANSI cursor positioning and line erasure codes (`\x1b[H`, `\x1b[K`, and `\x1b[J`) for a smooth, flicker-free terminal experience.
 
-## License
 
-ISC
