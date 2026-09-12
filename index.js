@@ -3,15 +3,71 @@ const Player = require("./player");
 
 const songsPath = "./songs";
 
-const songs = fs.readdirSync(songsPath);
+const songs = fs.readdirSync(songsPath)
+    .filter(song => song.toLowerCase().endsWith(".mp3"));
 
 let selectedSong = 0;
 let currentSongIndex = -1;
+let progressTimer = null;
 
 const player = new Player();
 
 
+function formatTime(seconds) {
+    if (!seconds || seconds < 0) {
+        seconds = 0;
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+
+    const formattedMinutes = String(minutes).padStart(2, "0");
+    const formattedSeconds = String(remainingSeconds).padStart(2, "0");
+
+    return `${formattedMinutes}:${formattedSeconds}`;
+}
+
+
+function progressBar(currentTime, duration) {
+    const totalBars = 30;
+
+    if (!duration || duration <= 0) {
+        return "------------------------------";
+    }
+
+    const progress = Math.min(1, Math.max(0, currentTime / duration));
+    const filledBars = Math.floor(progress * totalBars);
+    const emptyBars = totalBars - filledBars;
+
+    return "━".repeat(filledBars) + "●" + "━".repeat(emptyBars);
+}
+
+
+function startTimer() {
+    if (progressTimer) {
+        return;
+    }
+
+    progressTimer = setInterval(() => {
+        if (player.process && !player.isPaused) {
+            render();
+        }
+    }, 500);
+}
+
+
+function stopTimer() {
+    if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+    }
+}
+
+
 function playSong() {
+    if (songs.length === 0) {
+        return;
+    }
 
     const song = songs[selectedSong];
     const songPath = `${songsPath}/${song}`;
@@ -20,13 +76,19 @@ function playSong() {
 
     player.play(songPath, () => {
         nextSong();
+    }, () => {
+        render();
     });
 
+    startTimer();
     render();
 }
 
 
 function nextSong() {
+    if (songs.length === 0) {
+        return;
+    }
 
     selectedSong++;
 
@@ -39,6 +101,9 @@ function nextSong() {
 
 
 function previousSong() {
+    if (songs.length === 0) {
+        return;
+    }
 
     selectedSong--;
 
@@ -51,122 +116,154 @@ function previousSong() {
 
 
 function render() {
+    let output = "";
 
-    console.clear();
+    output += "🎵 MY MUSIC\n";
+    output += "------------------------------\n";
 
-    console.log("🎵 MY MUSIC");
-    console.log("--------------------");
+    if (songs.length === 0) {
+        output += "  No songs found\n";
+    } else {
+        songs.forEach((song, index) => {
+            let marker = " ";
 
+            if (index === selectedSong) {
+                marker = ">";
+            }
 
-    songs.forEach((song, index) => {
+            if (index === currentSongIndex) {
+                marker = "▶";
+            }
 
-        let marker = " ";
-
-        if (index === selectedSong) {
-            marker = ">";
-        }
-
-        if (index === currentSongIndex) {
-            marker = "▶";
-        }
-
-        console.log(`${marker} ${song}`);
-    });
-
-
-    console.log("--------------------");
-
-
-    if (currentSongIndex !== -1) {
-
-        console.log(`Playing: ${songs[currentSongIndex]}`);
-
-        if (player.isPaused) {
-            console.log("Status: ⏸ Paused");
-        } else {
-            console.log("Status: ▶ Playing");
-        }
-
+            output += `${marker} ${song}\n`;
+        });
     }
 
+    output += "------------------------------\n";
 
-    console.log("--------------------");
+    if (currentSongIndex !== -1 && songs[currentSongIndex]) {
+        output += `Now Playing: ${songs[currentSongIndex]}\n`;
 
-    console.log("\n↑ ↓ Navigate");
-    console.log("ENTER Play");
-    console.log("SPACE Pause / Resume");
-    console.log("N Next");
-    console.log("P Previous");
-    console.log("Q Quit");
+        if (player.hasError) {
+            output += "Status: ⚠️ Error (unable to play)\n";
+        } else if (player.isPaused) {
+            output += "Status: ⏸ Paused\n";
+        } else if (player.process) {
+            output += "Status: ▶ Playing\n";
+        } else {
+            output += "Status: ⏹ Stopped\n";
+        }
+
+        const currentTime = player.getCurrentTime();
+        const duration = player.duration;
+
+        output += "\n";
+        output += progressBar(currentTime, duration) + "\n";
+        output += `${formatTime(currentTime)} / ${formatTime(duration)}\n`;
+    }
+
+    output += "------------------------------\n";
+    output += "↑ ↓ Navigate\n";
+    output += "ENTER Play\n";
+    output += "SPACE Pause / Resume\n";
+    output += "N Next\n";
+    output += "P Previous\n";
+    output += "Q Quit\n";
+
+    const lines = output.split("\n");
+    let cleanOutput = "";
+
+    for (let i = 0; i < lines.length; i++) {
+        cleanOutput += lines[i] + "\x1b[K\n";
+    }
+
+    process.stdout.write("\x1b[H" + cleanOutput + "\x1b[J");
 }
 
 
-process.stdin.setRawMode(true);
+function quit() {
+    stopTimer();
+    player.stop();
+
+    process.stdout.write("\x1b[?25h\n");
+
+    if (process.stdin.isTTY) {
+        try {
+            process.stdin.setRawMode(false);
+        } catch (error) {}
+    }
+
+    process.stdin.pause();
+    process.exit(0);
+}
+
+
+process.on("SIGINT", quit);
+process.on("SIGTERM", quit);
+
+
+if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+}
+
 process.stdin.resume();
 process.stdin.setEncoding("utf8");
 
 
 process.stdin.on("data", (key) => {
-
-
-    if (key === "q") {
-
-        player.stop();
-
-        process.stdin.setRawMode(false);
-        process.stdin.pause();
-
-        process.exit(0);
+    if (key.startsWith("\u001B[M") || key.startsWith("\u001B[<")) {
+        return;
     }
 
+    if (key === "q" || key === "Q" || key === "\u0003") {
+        quit();
+    }
 
     if (key === "\u001B[B") {
+        if (songs.length > 0) {
+            selectedSong++;
 
-        selectedSong++;
+            if (selectedSong >= songs.length) {
+                selectedSong = 0;
+            }
 
-        if (selectedSong >= songs.length) {
-            selectedSong = 0;
+            render();
         }
-
-        render();
     }
-
 
     if (key === "\u001B[A") {
+        if (songs.length > 0) {
+            selectedSong--;
 
-        selectedSong--;
+            if (selectedSong < 0) {
+                selectedSong = songs.length - 1;
+            }
 
-        if (selectedSong < 0) {
-            selectedSong = songs.length - 1;
+            render();
         }
-
-        render();
     }
 
-
     if (key === "\r") {
-
         playSong();
     }
 
-
     if (key === " ") {
-
-        player.togglePause();
-
-        render();
+        if (player.process) {
+            player.togglePause();
+            render();
+        }
     }
 
-    if (key === "n") {
-
+    if (key === "n" || key === "N") {
         nextSong();
     }
 
-    if (key === "p") {
-
+    if (key === "p" || key === "P") {
         previousSong();
     }
 });
 
+
+process.stdout.write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1007l\x1b[2J\x1b[3J\x1b[H\x1b[?25l");
 
 render();
